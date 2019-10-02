@@ -1,0 +1,25 @@
+name: network_helper
+description: Dart Package to handle all network stuff
+version: 0.0.1
+author:
+homepage:
+
+environment:
+  sdk: ">=2.1.0 <3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  dio: 2.1.10
+  cookie_jar: ^1.0.0
+  connectivity: ^0.4.3+7
+  ssh:
+    git:
+      url: git://github.com/johnathanbreshears/flutter_ssh.git
+
+flutter:
