@@ -1,8 +1,8 @@
 name: network_helper
 description: Dart Package to handle all network stuff
 version: 0.0.1
-author:
-homepage:
+author: Johnathan Breshears
+homepage: https://github.com/johnathanbreshears/NetworkHelper
 
 environment:
   sdk: ">=2.1.0 <3.0.0"
@@ -23,6 +23,3 @@ dev_dependencies:
       url: git://github.com/johnathanbreshears/flutter_ssh.git
 
 flutter:
-  plugin:
-    androidPackage: sq.flutter.networkHelper
-    pluginClass: NetworkHelper
