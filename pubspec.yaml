@@ -23,3 +23,6 @@ dev_dependencies:
       url: git://github.com/johnathanbreshears/flutter_ssh.git
 
 flutter:
+  plugin:
+    androidPackage: sq.flutter.networkHelper
+    pluginClass: NetworkHelper
