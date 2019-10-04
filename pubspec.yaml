@@ -17,13 +17,3 @@ dependencies:
   ssh:
     git:
       url: git://github.com/johnathanbreshears/flutter_ssh.git
-
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
-
-
-
-flutter:
-  plugin:
-    pluginClass: NetworkHelper
