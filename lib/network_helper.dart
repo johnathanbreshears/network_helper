@@ -145,11 +145,11 @@ class NetworkHelper {
 
   /// sends a Post request to using the urlInUse
   /// returns the dioLib.Response.data
-  Future sendPOSTRequest(String site, Map body, Future<Navigator> navigate) async {
+  Future sendPOSTRequest(String site, Map body, Function navigate) async {
 
     await _connectToTunnelIfNeeded();
     if (site != loginPath && _tokenIsExpired()) {
-      await navigate;
+      await navigate();
     }
     try {
       if (Platform.isAndroid) {
