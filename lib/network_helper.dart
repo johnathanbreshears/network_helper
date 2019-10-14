@@ -240,8 +240,8 @@ class NetworkHelper {
     return _linkerTables[name];
   }
 
-  Future<bool> getLinkerTables(String linkerAddress, NetworkHelper networkHelper, Function navigate) async {
-    var linkerTablesRaw = await networkHelper.sendPOSTRequest(linkerAddress, {}, navigate);
+  Future<bool> getLinkerTables(String linkerAddress, Function navigate) async {
+    var linkerTablesRaw = await sendPOSTRequest(linkerAddress, {}, navigate);
     linkerTablesRaw.data['data'].forEach((key,value) => _linkerTables[key] = value);
     return true;
   }
