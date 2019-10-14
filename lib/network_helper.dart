@@ -57,6 +57,30 @@ class NetworkHelper {
     Directory tempDir = await getTemporaryDirectory();
     String tempPath = tempDir.path;
     cj = PersistCookieJar(dir:tempPath,ignoreExpires:false);
+
+
+    final List<Cookie> cookies = <Cookie>[
+      new Cookie('name', 'jsh'),
+      new Cookie('location', 'USA'),
+    ];
+    final List<Cookie> cookiesExpired = <Cookie>[
+      new Cookie('name', 'jsh')..maxAge = 1,
+      new Cookie('location', 'USA')
+        ..expires = new DateTime.now().add(const Duration(hours: 24)),
+    ];
+    cj.saveFromResponse(Uri.parse('https://$urlHost/$urlPath'), cookies);
+    List<Cookie> results =  cj.loadForRequest(Uri.parse('https://$urlHost/$urlPath'));
+    assert(results.length == 2);
+    results = cj.loadForRequest(Uri.parse('https://$urlHost/$urlPath'));
+    assert(results.length == 2);
+    cj.saveFromResponse(Uri.parse('https://$urlHost/$urlPath'), cookiesExpired);
+    results = cj.loadForRequest(Uri.parse('https://$urlHost/$urlPath'));
+    assert(results.length == 2);
+
+    await new Future<void>.delayed(const Duration(seconds: 2), () {
+      results = cj.loadForRequest(Uri.parse('https://$urlHost/$urlPath'));
+      assert(results.length == 1);
+    });
   }
 
 
