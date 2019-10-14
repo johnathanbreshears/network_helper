@@ -12,8 +12,9 @@ dependencies:
     sdk: flutter
 
   dio: 2.1.10
-  cookie_jar: ^1.0.0
+  cookie_jar: 1.0.0
   connectivity: ^0.4.3+7
   ssh:
     git:
       url: git://github.com/johnathanbreshears/flutter_ssh.git
+  path_provider: ^1.3.0
