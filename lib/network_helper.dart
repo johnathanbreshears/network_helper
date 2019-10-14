@@ -8,6 +8,7 @@ import 'package:connectivity/connectivity.dart';
 import 'package:ssh/ssh.dart';
 import 'package:flutter/material.dart';
 import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 
 
 _parseAndDecode(String response) {
@@ -37,27 +38,32 @@ class NetworkHelper {
   Map _linkerTables = {};
 
   final dioLib.Dio dio = dioLib.Dio();
-  final cj = CookieJar();
+  var cj = PersistCookieJar();
 
   /// NetworkHelper Constructor
-  NetworkHelper(
-      {@required this.urlHost, @required this.urlPath, this.loginPath, this.safeWIFIs}) {
+  NetworkHelper({@required this.urlHost, @required this.urlPath, this.loginPath, this.safeWIFIs}) {
+
     urlWithoutTunnel = 'https://$urlHost/$urlPath';
 
-    dio.interceptors..add(dioLib.CookieManager(cj))..add(
-        dioLib.LogInterceptor());
-    (dio.transformer as dioLib.DefaultTransformer).jsonDecodeCallback =
-        parseJson;
+    dio.interceptors..add(dioLib.CookieManager(cj))..add(dioLib.LogInterceptor());
+    (dio.transformer as dioLib.DefaultTransformer).jsonDecodeCallback = parseJson;
     dio.options.receiveTimeout = 100000;
     dio.options.connectTimeout = 100000;
+
+    setupCookieJar();
+  }
+
+  void setupCookieJar() async {
+    Directory tempDir = await getTemporaryDirectory();
+    String tempPath = tempDir.path;
+    cj = PersistCookieJar(dir:tempPath,ignoreExpires:false);
   }
 
 
   /// if an SSH Tunnel with prot forwarding will be required,
   /// it will create the tunnel configs,
   /// this will not connect the tunnel.
-  void setupSSHClient(String host, int port, String username,
-      String passwordOrKey, int rPort, int lPort, String rHost) {
+  void setupSSHClient(String host, int port, String username, String passwordOrKey, int rPort, int lPort, String rHost) {
     _sshInfo = {
       'host': host,
       'port': port,
