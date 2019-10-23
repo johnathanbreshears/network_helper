@@ -10,7 +10,8 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 
-
+/// two small helper functions that are used in the Constructor under
+/// dioLib.DefaultTransformer.
 _parseAndDecode(String response) {
   return convert.jsonDecode(response);
 }
@@ -20,25 +21,19 @@ parseJson(String text) {
 
 class NetworkHelper {
 
-  String urlWithTunnel;
-  String urlWithoutTunnel;
-  String urlInUse;
-  List<String> safeWIFIs;
-  String urlHost;
-  String urlPath;
-  String loginPath;
 
-  Map _userInfo = {};
+  /// variable initialize and declare
+  String urlWithTunnel, urlWithoutTunnel, urlInUse, urlHost, urlPath, loginPath, _cookieString;
   int _tokenEXP = 0;
-
-
-  SSHClient _sshClient;
+  List<String> safeWIFIs;
   Map _sshInfo;
-
+  Map _userInfo = {};
   Map _linkerTables = {};
-
+  SSHClient _sshClient;
+  File _cookieFile;
   final dioLib.Dio dio = dioLib.Dio();
-  var cj = PersistCookieJar();
+  var cj = CookieJar();
+
 
   /// NetworkHelper Constructor
   NetworkHelper({@required this.urlHost, @required this.urlPath, this.loginPath, this.safeWIFIs}) {
@@ -49,40 +44,96 @@ class NetworkHelper {
     (dio.transformer as dioLib.DefaultTransformer).jsonDecodeCallback = parseJson;
     dio.options.receiveTimeout = 100000;
     dio.options.connectTimeout = 100000;
-
-    setupCookieJar();
   }
 
-  void setupCookieJar() async {
-    Directory tempDir = await getTemporaryDirectory();
-    String tempPath = tempDir.path;
-    cj = PersistCookieJar(dir:tempPath,ignoreExpires:false);
 
-
-    final List<Cookie> cookies = <Cookie>[
-      new Cookie('name', 'jsh'),
-      new Cookie('location', 'USA'),
-    ];
-    final List<Cookie> cookiesExpired = <Cookie>[
-      new Cookie('name', 'jsh')..maxAge = 1,
-      new Cookie('location', 'USA')
-        ..expires = new DateTime.now().add(const Duration(hours: 24)),
-    ];
-    cj.saveFromResponse(Uri.parse('https://$urlHost/$urlPath'), cookies);
-    List<Cookie> results =  cj.loadForRequest(Uri.parse('https://$urlHost/$urlPath'));
-    assert(results.length == 2);
-    results = cj.loadForRequest(Uri.parse('https://$urlHost/$urlPath'));
-    assert(results.length == 2);
-    cj.saveFromResponse(Uri.parse('https://$urlHost/$urlPath'), cookiesExpired);
-    results = cj.loadForRequest(Uri.parse('https://$urlHost/$urlPath'));
-    assert(results.length == 2);
-
-    await new Future<void>.delayed(const Duration(seconds: 2), () {
-      results = cj.loadForRequest(Uri.parse('https://$urlHost/$urlPath'));
-      assert(results.length == 1);
-    });
+  /// Both _localPath and _localCookieDirectory are used in _cookieFileExists(),
+  /// this uses path_provider.dart to get a local directory and create the /cookies
+  /// directory in that directory.
+  Future<String> get _localPath async {
+    final directory = await getApplicationDocumentsDirectory();
+    return directory.path;
+  }
+  Future<Directory> get _localCookieDirectory async {
+    final path = await _localPath;
+    final Directory dir = new Directory('$path/cookies');
+    await dir.create();
+    return dir;
   }
 
+  /// returns true if the local jsh_cookie.txt exists,
+  /// and reads the cookie writen there and saves it as _cookieString
+  /// returns false if the file does not exists, then creates that file.
+  Future<bool> _cookieFileExists() async {
+    var pathToDir = await _localCookieDirectory;
+    String path = '${pathToDir.path}/jsh_cookie.txt';
+    _cookieFile = File(path);
+    if (await _cookieFile.exists()) {
+      print('The File exists');
+      _cookieString = await _cookieFile.readAsString();
+      return true;
+    }
+    _cookieFile.create();
+    return false;
+  }
+
+  /// Takes Response and get the cookie from it
+  /// then returns the cookie String
+  String _setCookieString(dioLib.Response response) {
+    List<String> cookieList = response.headers[HttpHeaders.setCookieHeader];
+    if (cookieList != null) {
+      List<Cookie> cookies = cookieList.map((str) => Cookie.fromSetCookieValue(str)).toList();
+      return 'jwtToken=${cookies[0].value}';
+    }
+    print('CookieString is null');
+    return null;
+  }
+
+  /// Checks if we have a valid JWT Token
+  /// first it checks is there is even a file on devise with cookie
+  /// then does a backend call using /chklogin
+  /// if backend server says cookie is still valid,
+  /// get user and tokenEXP from the response
+  /// sets new cookie in the header
+  Future<bool> checkValidJWT() async {
+    if (!(await _cookieFileExists())) {
+      return false;
+    }
+    await _connectToTunnelIfNeeded();
+    try {
+      dio.options.headers['cookie'] = _cookieString;
+      if (Platform.isAndroid) {
+        (dio.httpClientAdapter as dioLib.DefaultHttpClientAdapter)
+            .onHttpClientCreate = (client) {
+          client.badCertificateCallback =
+              (X509Certificate cert, String host, int port) => true;
+          return client;
+        };
+      }
+      print('Here is the urlInUse: $urlInUse');
+      dioLib.Response response = await dio.post('$urlInUse/chklogin', data: '', options: dioLib.Options(contentType: ContentType.parse('application/json'),));
+      if (response.statusCode != 200) {
+        print(response.statusCode);
+        return false;
+      }
+      _userInfo = response.data['auth']['sub'];
+      _tokenEXP = response.data['auth']['exp'];
+      _cookieString = _setCookieString(response);
+      if (_cookieString == null) {
+        return false;
+      }
+      dio.options.headers['cookie'] = _cookieString;
+      return true;
+    } catch (e) {
+      print(e);
+      return false;
+    }
+  }
+
+  /// Saves the current cookieString to the cookieFile
+  void saveCookieToFile() {
+    _cookieFile.writeAsStringSync(_cookieString);
+  }
 
   /// if an SSH Tunnel with prot forwarding will be required,
   /// it will create the tunnel configs,
@@ -207,6 +258,7 @@ class NetworkHelper {
         return null;
       }
       _tokenEXP = response.data['auth']['exp'];
+      _cookieString = _setCookieString(response);
       return response;
     } catch (e) {
       print(e);
@@ -260,22 +312,18 @@ class NetworkHelper {
     return _userInfo;
   }
 
-  /// Here is the LinkerTable Stuff
-
-  void addTable(Map map, String name) {
-    _linkerTables[name] = map;
-  }
-
+  /// takes a given name and,
+  /// returns the _linkerTables List[given name]
   Map getTable(String name) {
     return _linkerTables[name];
   }
 
+  /// makes a sendPostRequest with the linkerAddress and then adds the whole
+  /// map(from the response.data['data']) to the _linkerTables List
   Future<bool> getLinkerTables(String linkerAddress, Function navigate) async {
     var linkerTablesRaw = await sendPOSTRequest(linkerAddress, {}, navigate);
     linkerTablesRaw.data['data'].forEach((key,value) => _linkerTables[key] = value);
     return true;
   }
 }
-
-
 
