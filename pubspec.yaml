@@ -19,3 +19,4 @@ dependencies:
     git:
       url: git://github.com/johnathanbreshears/flutter_ssh.git
   path_provider: ^1.3.0
+  dio_http2_adapter: ^1.0.0  #latest version
