@@ -3,6 +3,7 @@ library network_helper;
 import 'dart:convert' as convert;
 import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart' as dioLib;
+import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:connectivity/connectivity.dart';
 import 'package:ssh/ssh.dart';
