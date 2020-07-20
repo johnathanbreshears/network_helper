@@ -113,7 +113,7 @@ class NetworkHelper {
         };
       }
       print('Here is the urlInUse: $urlInUse');
-      dioLib.Response response = await dio.post('$urlInUse/chklogin', data: '', options: dioLib.Options(contentType: ContentType.parse('application/json'),));
+      dioLib.Response response = await dio.post('$urlInUse/chklogin', data: '', options: dioLib.Options(contentType: ContentType.parse('application/json').toString(),));
       if (response.statusCode != 200) {
         print(response.statusCode);
         return false;
@@ -254,7 +254,7 @@ class NetworkHelper {
       }
       dioLib.Response response = await dio.post('$urlInUse/$site', data: body,
           options: dioLib.Options(
-            contentType: ContentType.parse('application/json'),));
+            contentType: ContentType.parse('application/json').toString(),));
       if (response.statusCode != 200) {
         print(response.statusCode);
         return null;
