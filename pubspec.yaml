@@ -13,9 +13,7 @@ dependencies:
 
   dio: ^3.0.9
   dio_cookie_manager: ^1.0.0  #latest version
-  cookie_jar:
-    git:
-      url: git://github.com/johnathanbreshears/cookie_jar.git
+  cookie_jar: 1.0.1
   connectivity: ^0.4.3+7
   ssh:
     git:
