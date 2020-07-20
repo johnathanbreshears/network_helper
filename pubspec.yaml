@@ -12,6 +12,7 @@ dependencies:
     sdk: flutter
 
   dio: ^3.0.9
+  dio_cookie_manager: 1.0.x  #latest versio
   cookie_jar: 1.0.0
   connectivity: ^0.4.3+7
   ssh:
