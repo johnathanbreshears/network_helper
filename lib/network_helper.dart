@@ -10,6 +10,7 @@ import 'package:ssh/ssh.dart';
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
+import 'package:dio/adapter.dart';
 
 /// two small helper functions that are used in the Constructor under
 /// dioLib.DefaultTransformer.
@@ -104,7 +105,7 @@ class NetworkHelper {
     try {
       dio.options.headers['cookie'] = _cookieString;
       if (Platform.isAndroid) {
-        (dio.httpClientAdapter as dioLib.DefaultHttpClientAdapter)
+        (dio.httpClientAdapter as DefaultHttpClientAdapter)
             .onHttpClientCreate = (client) {
           client.badCertificateCallback =
               (X509Certificate cert, String host, int port) => true;
@@ -244,7 +245,7 @@ class NetworkHelper {
     }
     try {
       if (Platform.isAndroid) {
-        (dio.httpClientAdapter as dioLib.DefaultHttpClientAdapter)
+        (dio.httpClientAdapter as DefaultHttpClientAdapter)
             .onHttpClientCreate = (client) {
           client.badCertificateCallback =
               (X509Certificate cert, String host, int port) => true;
