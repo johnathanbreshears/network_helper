@@ -41,7 +41,7 @@ class NetworkHelper {
 
     urlWithoutTunnel = 'https://$urlHost/$urlPath';
 
-    dio.interceptors..add(dioLib.CookieManager(cj))..add(dioLib.LogInterceptor());
+    dio.interceptors..add(CookieManager(cj))..add(dioLib.LogInterceptor());
     (dio.transformer as dioLib.DefaultTransformer).jsonDecodeCallback = parseJson;
     dio.options.receiveTimeout = 100000;
     dio.options.connectTimeout = 100000;
