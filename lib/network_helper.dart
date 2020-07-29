@@ -26,6 +26,7 @@ class NetworkHelper {
 
   /// variable initialize and declare
   String urlWithTunnel, urlWithoutTunnel, urlInUse, urlHost, urlPath, loginPath, _cookieString;
+  ErrorHelper errorHelper;
   int _tokenEXP = 0;
   List<String> safeWIFIs;
   Map _sshInfo;
@@ -87,7 +88,7 @@ class NetworkHelper {
       List<Cookie> cookies = cookieList.map((str) => Cookie.fromSetCookieValue(str)).toList();
       return 'jwtToken=${cookies[0].value}';
     }
-    print('CookieString is null');
+    errorHelper.setCookieError("The Cookie is null(see method: _setCookieString)");
     return null;
   }
 
@@ -115,7 +116,7 @@ class NetworkHelper {
       print('Here is the urlInUse: $urlInUse');
       dioLib.Response response = await dio.post('$urlInUse/chklogin', data: '', options: dioLib.Options(contentType: ContentType.parse('application/json').toString(),));
       if (response.statusCode != 200) {
-        print(response.statusCode);
+        errorHelper.setPostError("The status code of the post response was not 200 here is the status: ${response.statusCode}");
         return false;
       }
       _userInfo = response.data['auth']['sub'];
@@ -127,7 +128,7 @@ class NetworkHelper {
       dio.options.headers['cookie'] = _cookieString;
       return true;
     } catch (e) {
-      print(e);
+      errorHelper.setJWTError("Error in the checkValidJWT method: $e");
       return false;
     }
   }
@@ -161,8 +162,8 @@ class NetworkHelper {
   Future<bool> _checkIfNetworkSafe() async {
     var connectivityResult = await (Connectivity().checkConnectivity());
     var wifiName = await (Connectivity().getWifiName());
+    print(wifiName);
     if (connectivityResult == ConnectivityResult.mobile) {
-      // I am connected to a mobile network.
       return false;
     } else if (connectivityResult == ConnectivityResult.wifi) {
       for (String currentWIFI in safeWIFIs) {
@@ -202,7 +203,7 @@ class NetworkHelper {
         }
       }
     } catch (e) {
-      print("Error is networking.checkConnectionNeeded: $e");
+      errorHelper.setTunnelError("There is a error in the _connectToTunnelIfNeeded method: $e");
     }
   }
 
@@ -211,7 +212,7 @@ class NetworkHelper {
   /// returns the port to use with the url
   Future<void> _connectToTunnel() async {
     if (_sshClient == null) {
-      print('Did not provide SSH CONFIGS!');
+      errorHelper.setTunnelError("Did not provide SSH CONFIGS for the tunnel");
       return null;
     }
     try {
@@ -221,7 +222,7 @@ class NetworkHelper {
       urlWithTunnel = 'https://127.0.0.1:$assignedPort/$urlPath';
       urlInUse = urlWithTunnel;
     } catch (e) {
-      print('\nError in connectToTunnel Method: $e');
+      errorHelper.setTunnelError("Error in connectToTunnel Method: $e");
     }
   }
 
@@ -252,18 +253,20 @@ class NetworkHelper {
           return client;
         };
       }
-      dioLib.Response response = await dio.post('$urlInUse/$site', data: body,
-          options: dioLib.Options(
-            contentType: ContentType.parse('application/json').toString(),));
+      dioLib.Response response = await dio.post('$urlInUse/$site', data: body, options: dioLib.Options(contentType: ContentType.parse('application/json').toString(),));
+      if (response==null) {
+        return null;
+      }
       if (response.statusCode != 200) {
-        print(response.statusCode);
+        errorHelper.setPostError("The status code of the post response was not 200 here is the status: ${response.statusCode}");
         return null;
       }
       _tokenEXP = response.data['auth']['exp'];
       _cookieString = _setCookieString(response);
       return response;
     } catch (e) {
-      print(e);
+      errorHelper.setPostError("Error in network_helper.sendPOSTRequest: $e");
+      return null;
     }
   }
 
@@ -276,20 +279,21 @@ class NetworkHelper {
   Future<bool> login(String username, String password) async {
     try {
       cj.deleteAll();
-      var statusOfLogin = await sendPOSTRequest(
-          'login', {"password": password, "username": username}, null);
+      var statusOfLogin = await sendPOSTRequest('login', {"password": password, "username": username}, null);
+      print(statusOfLogin);
+      if (statusOfLogin==null) {
+        return false;
+      }
       if (statusOfLogin.data['status'] == 'SUCCESS') {
         _userInfo = statusOfLogin.data['auth']['sub'];
         _tokenEXP = statusOfLogin.data['auth']['exp'];
-        List<String> cookieString = statusOfLogin.headers[HttpHeaders
-            .setCookieHeader];
+        List<String> cookieString = statusOfLogin.headers[HttpHeaders.setCookieHeader];
         if (cookieString != null) {
-          List<Cookie> cookies = cookieString.map((str) =>
-              Cookie.fromSetCookieValue(str)).toList();
+          List<Cookie> cookies = cookieString.map((str) => Cookie.fromSetCookieValue(str)).toList();
           dio.options.headers['cookie'] = 'jwtToken=${cookies[0].value}';
           return true;
         } else {
-          print('CookieString is null');
+          errorHelper.setCookieError("CookieString is null");
           return false;
         }
       } else {
@@ -298,12 +302,11 @@ class NetworkHelper {
       }
     } catch (e) {
       String error = e.toString();
-      if (error.startsWith(
-          'DioError [DioErrorType.DEFAULT]: HttpException: , uri =')) {
+      if (error.startsWith('DioError [DioErrorType.DEFAULT]: HttpException: , uri =')) {
         print('normal error');
         return login(username, password);
       } else {
-        print('this is the error: ($e)');
+        errorHelper.setLoginError("Error in network_helper.login: $e");
         return false;
       }
     }
@@ -320,6 +323,11 @@ class NetworkHelper {
     return _linkerTables[name];
   }
 
+  /// Returns the ErrorHelper class
+  ErrorHelper getError() {
+    return errorHelper;
+  }
+
   /// makes a sendPostRequest with the linkerAddress and then adds the whole
   /// map(from the response.data['data']) to the _linkerTables List
   Future<bool> getLinkerTables(String linkerAddress, Function navigate) async {
@@ -327,5 +335,54 @@ class NetworkHelper {
     linkerTablesRaw.data['data'].forEach((key,value) => _linkerTables[key] = value);
     return true;
   }
+}
+
+class ErrorHelper {
+  /// variable initialize and declare
+  String postError, cookieError, loginError, tunnelError, generalError, jwtError;
+
+  /// NetworkHelper Constructor
+  ErrorHelper();
+
+  /// Setter methods for error
+  void setPostError(String error) {
+    this.postError = error;
+  }
+  void setCookieError(String error) {
+    this.cookieError = error;
+  }
+  void setLoginError(String error) {
+    this.loginError = error;
+  }
+  void setTunnelError(String error) {
+    this.tunnelError = error;
+  }
+  void setGeneralError(String error) {
+    this.generalError = error;
+  }
+  void setJWTError(String error) {
+    this.jwtError = error;
+  }
+
+  /// Getter methods for error
+  String getPostError() {
+    return postError;
+  }
+  String getCookieError() {
+    return cookieError;
+  }
+  String getLoginError() {
+    return loginError;
+  }
+  String getTunnelError() {
+    return tunnelError;;
+  }
+  String getGeneralError() {
+    return generalError;
+  }
+  String getJWTError() {
+    return jwtError;
+  }
+
 }
 
