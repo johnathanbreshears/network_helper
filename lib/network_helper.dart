@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:dio/adapter.dart';
+import 'package:location_permissions/location_permissions.dart';
 
 /// two small helper functions that are used in the Constructor under
 /// dioLib.DefaultTransformer.
@@ -160,6 +161,12 @@ class NetworkHelper {
   /// returns a true is the user is currently on a approved WIFI based on the
   /// safeWIFIs list, if not returns false
   Future<bool> _checkIfNetworkSafe() async {
+    PermissionStatus permission = await LocationPermissions().checkPermissionStatus();
+    if (permission==PermissionStatus.granted) {
+      print("Location permission is turned on");
+    } else {
+      permission = await LocationPermissions().requestPermissions();
+    }
     var connectivityResult = await (Connectivity().checkConnectivity());
     var wifiName = await (Connectivity().getWifiName());
     print(wifiName);
