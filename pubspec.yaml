@@ -1,6 +1,6 @@
 name: network_helper
 description: Dart Package to handle all network stuff
-version: 0.0.1
+version: 1.0.0
 author: Johnathan Breshears
 homepage: https://github.com/johnathanbreshears/NetworkHelper
 
@@ -14,7 +14,7 @@ dependencies:
   dio: ^3.0.9
   dio_cookie_manager: ^1.0.0  #latest version
   cookie_jar: 1.0.1
-  connectivity: ^0.4.3+7
+  connectivity: '>=0.4.9 <2.0.0'
   ssh:
     git:
       url: git://github.com/johnathanbreshears/flutter_ssh.git
