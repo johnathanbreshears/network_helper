@@ -40,7 +40,7 @@ class NetworkHelper {
 
   /// NetworkHelper Constructor
   NetworkHelper({@required this.urlHost, @required this.urlPath, this.loginPath, this.safeWIFIs}) {
-
+    errorHelper = ErrorHelper();
     urlWithoutTunnel = 'https://$urlHost/$urlPath';
 
     dio.interceptors..add(CookieManager(cj))..add(dioLib.LogInterceptor());
