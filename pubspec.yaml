@@ -19,3 +19,4 @@ dependencies:
     git:
       url: git://github.com/johnathanbreshears/flutter_ssh.git
   path_provider: ^1.3.0
+  location_permissions: ^3.0.0+1
