@@ -342,6 +342,11 @@ class NetworkHelper {
     linkerTablesRaw.data['data'].forEach((key,value) => _linkerTables[key] = value);
     return true;
   }
+  
+  /// Test the tunnel
+  Future<String> testTunnelConnection(String command) async{
+    return await _sshClient.execute(command);
+  }
 }
 
 class ErrorHelper {
