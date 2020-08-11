@@ -27,6 +27,7 @@ class NetworkHelper {
 
   /// variable initialize and declare
   String urlWithTunnel, urlWithoutTunnel, urlInUse, urlHost, urlPath, loginPath, _cookieString;
+  String _assignedPort;
   ErrorHelper errorHelper;
   int _tokenEXP = 0;
   List<String> safeWIFIs;
@@ -157,6 +158,42 @@ class NetworkHelper {
         username: _sshInfo['username'],
         passwordOrKey: _sshInfo['passwordOrKey']);
   }
+  
+  /// Setup second sshclient then connect then send command, then disconnect
+  void sshCommand(String host, String username, String passwordOrKey, String command) async {
+    SSHClient tempSSHClient;
+    //Checking if need tunnel
+    await _connectToTunnelIfNeeded();
+    bool onSafeWIFI = await _checkIfNetworkSafe();
+    print('\nthis is the onSafeWIFI bool: $onSafeWIFI');
+    if (onSafeWIFI) {
+      tempSSHClient = SSHClient(
+        host: host,
+        port: 22,
+        username: username,
+        passwordOrKey: passwordOrKey,
+      );
+    } else {
+      tempSSHClient = SSHClient(
+        host: 'localhost',
+        port: int.parse(_assignedPort),
+        username: username,
+        passwordOrKey: passwordOrKey,
+      );
+    }
+
+    //Done, connecting to temp ssh client
+    if (await _sshClient.isConnected()) {
+      print('\nmainSSH is connected');
+    } else {
+      print('\nmainSSH is NOT connected');
+    }
+
+    await tempSSHClient.connect();
+    //Done connected to temp ssh client
+    await tempSSHClient.execute(command);
+    tempSSHClient.disconnect();
+  }
 
   /// returns a true is the user is currently on a approved WIFI based on the
   /// safeWIFIs list, if not returns false
@@ -224,9 +261,9 @@ class NetworkHelper {
     }
     try {
       await _sshClient.connect();
-      var assignedPort = await _sshClient.portForwardL(
+      _assignedPort = await _sshClient.portForwardL(
           _sshInfo['rPort'], _sshInfo['lPort'], _sshInfo['rHost']);
-      urlWithTunnel = 'https://127.0.0.1:$assignedPort/$urlPath';
+      urlWithTunnel = 'https://127.0.0.1:$_assignedPort/$urlPath';
       urlInUse = urlWithTunnel;
     } catch (e) {
       errorHelper.setTunnelError("Error in connectToTunnel Method: $e");
