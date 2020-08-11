@@ -183,12 +183,6 @@ class NetworkHelper {
     }
 
     //Done, connecting to temp ssh client
-    if (await _sshClient.isConnected()) {
-      print('\nmainSSH is connected');
-    } else {
-      print('\nmainSSH is NOT connected');
-    }
-
     await tempSSHClient.connect();
     //Done connected to temp ssh client
     await tempSSHClient.execute(command);
