@@ -12,6 +12,8 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:dio/adapter.dart';
 import 'package:location_permissions/location_permissions.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:dio_http2_adapter/dio_http2_adapter.dart';
 
 /// two small helper functions that are used in the Constructor under
 /// dioLib.DefaultTransformer.
@@ -27,8 +29,8 @@ class NetworkHelper {
 
   /// variable initialize and declare
   String urlWithTunnel, urlWithoutTunnel, urlInUse, urlHost, urlPath, loginPath, _cookieString;
-  String _assignedPort;
   ErrorHelper errorHelper;
+  String _assignedPort;
   int _tokenEXP = 0;
   List<String> safeWIFIs;
   Map _sshInfo;
@@ -70,15 +72,17 @@ class NetworkHelper {
   /// and reads the cookie writen there and saves it as _cookieString
   /// returns false if the file does not exists, then creates that file.
   Future<bool> _cookieFileExists() async {
-    var pathToDir = await _localCookieDirectory;
-    String path = '${pathToDir.path}/jsh_cookie.txt';
-    _cookieFile = File(path);
-    if (await _cookieFile.exists()) {
-      print('The File exists');
-      _cookieString = await _cookieFile.readAsString();
-      return true;
+    if (!kIsWeb) {
+      var pathToDir = await _localCookieDirectory;
+      String path = '${pathToDir.path}/jsh_cookie.txt';
+      _cookieFile = File(path);
+      if (await _cookieFile.exists()) {
+        print('The File exists');
+        _cookieString = await _cookieFile.readAsString();
+        return true;
+      }
+      _cookieFile.create();
     }
-    _cookieFile.create();
     return false;
   }
 
@@ -158,7 +162,7 @@ class NetworkHelper {
         username: _sshInfo['username'],
         passwordOrKey: _sshInfo['passwordOrKey']);
   }
-  
+
   /// Setup second sshclient then connect then send command, then disconnect
   void sshCommand(String host, String username, String passwordOrKey, String command) async {
     SSHClient tempSSHClient;
@@ -181,11 +185,11 @@ class NetworkHelper {
         passwordOrKey: passwordOrKey,
       );
     }
-
-    //Done, connecting to temp ssh client
+    //Connecting to tempSSHClient
     await tempSSHClient.connect();
-    //Done connected to temp ssh client
+    //Execute to tempSSHClient
     await tempSSHClient.execute(command);
+    //Disconnect for tempSSHClient
     tempSSHClient.disconnect();
   }
 
@@ -217,31 +221,33 @@ class NetworkHelper {
   /// if safe makes sure tunnel is not connected, if is then disconnects tunnel
   /// if not safe checks if tunnel is created if not, creates and connect tunnel
   Future<void> _connectToTunnelIfNeeded() async {
-    try {
-      bool onSafeWIFI = await _checkIfNetworkSafe();
-      if (onSafeWIFI) {
-        print("You are on a safe WIFI, no tunnel needed");
-        urlInUse = urlWithoutTunnel;
-        if (_sshClient != null) {
-          if (await _sshClient.isConnected()) {
-            print("Disconnecting SSH Tunnel");
-            _sshClient.disconnect();
+    if (!kIsWeb) {
+      try {
+        bool onSafeWIFI = await _checkIfNetworkSafe();
+        if (onSafeWIFI) {
+          print("You are on a safe WIFI, no tunnel needed");
+          urlInUse = urlWithoutTunnel;
+          if (_sshClient != null) {
+            if (await _sshClient.isConnected()) {
+              print("Disconnecting SSH Tunnel");
+              _sshClient.disconnect();
+            }
           }
-        }
-      } else {
-        if (_sshClient == null) {
-          print("Create SSH Tunnel");
-          await _connectToTunnel();
         } else {
-          urlInUse = urlWithTunnel;
-          if (!await _sshClient.isConnected()) {
-            print("Reconnecting to SSH Tunnel");
+          if (_sshClient == null) {
+            print("Create SSH Tunnel");
             await _connectToTunnel();
+          } else {
+            urlInUse = urlWithTunnel;
+            if (!await _sshClient.isConnected()) {
+              print("Reconnecting to SSH Tunnel");
+              await _connectToTunnel();
+            }
           }
         }
+      } catch (e) {
+        errorHelper.setTunnelError("There is a error in the _connectToTunnelIfNeeded method: $e");
       }
-    } catch (e) {
-      errorHelper.setTunnelError("There is a error in the _connectToTunnelIfNeeded method: $e");
     }
   }
 
@@ -283,13 +289,23 @@ class NetworkHelper {
       await navigate();
     }
     try {
-      if (Platform.isAndroid) {
-        (dio.httpClientAdapter as DefaultHttpClientAdapter)
-            .onHttpClientCreate = (client) {
-          client.badCertificateCallback =
-              (X509Certificate cert, String host, int port) => true;
-          return client;
-        };
+      if (kIsWeb) {
+        dio.httpClientAdapter = Http2Adapter(
+          ConnectionManager(
+            idleTimeout: 10000,
+            /// Ignore bad certificate
+            onClientCreate: (_, clientSetting) => clientSetting.onBadCertificate = (_) => true,
+          ),
+        );
+      } else {
+        if (Platform.isAndroid) {
+          (dio.httpClientAdapter as DefaultHttpClientAdapter)
+              .onHttpClientCreate = (client) {
+            client.badCertificateCallback =
+                (X509Certificate cert, String host, int port) => true;
+            return client;
+          };
+        }
       }
       dioLib.Response response = await dio.post('$urlInUse/$site', data: body, options: dioLib.Options(contentType: ContentType.parse('application/json').toString(),));
       if (response==null) {
@@ -373,7 +389,7 @@ class NetworkHelper {
     linkerTablesRaw.data['data'].forEach((key,value) => _linkerTables[key] = value);
     return true;
   }
-  
+
   /// Test the tunnel
   Future<String> testTunnelConnection(String command) async{
     return await _sshClient.execute(command);
